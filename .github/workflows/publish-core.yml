@@ -88,9 +88,20 @@ jobs:
           MESSAGE_INPUT: ${{ inputs.message }}
         run: |
           set -euo pipefail
-          if [ -z "${URL_INPUT}${TAG_INPUT}${VERSION_INPUT}" ]; then
-            echo "Provide at least one of: url (+ sha256), tag (+ revision), or version." >&2
+          FORMULA_PATH="./Formula/${FORMULA}.rb"
+          if [ ! -f "$FORMULA_PATH" ]; then
+            echo "Formula file $FORMULA_PATH not found." >&2
             exit 1
+          fi
+
+          if [ -z "${URL_INPUT}${TAG_INPUT}${VERSION_INPUT}" ]; then
+            DETECTED_VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/')"
+            if [ -z "${DETECTED_VERSION:-}" ]; then
+              echo "Provide at least one of: url (+ sha256), tag (+ revision), or version." >&2
+              exit 1
+            fi
+            VERSION_INPUT="$DETECTED_VERSION"
+            echo "Detected version $VERSION_INPUT from $FORMULA_PATH"
           fi
 
           brew update
