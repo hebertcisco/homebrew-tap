@@ -1,7 +1,7 @@
 # Homebrew Tap
 
 This repository hosts Hebert Cisco's custom Homebrew tap and the automation
-needed to eventually land the maintained formulae in `Homebrew/homebrew-core`.
+that keeps the maintained formulae in sync with `Homebrew/homebrew-core`.
 
 ## Available formulae
 
@@ -29,54 +29,31 @@ brew audit --strict oscleaner
 
 ## Publishing to `homebrew-core`
 
-Homebrew requires all new or updated formulae to follow the steps described in
-the [homebrew-core contributing guide](https://github.com/Homebrew/homebrew-core/blob/main/CONTRIBUTING.md)
-and the [Formula Cookbook](https://docs.brew.sh/Formula-Cookbook#commit).
-The high-level checklist for this tap is:
+Homebrew still requires contributors to follow the
+[homebrew-core contributing guide](https://github.com/Homebrew/homebrew-core/blob/main/CONTRIBUTING.md)
+and the [Formula Cookbook](https://docs.brew.sh/Formula-Cookbook#commit), but
+this tap now automates most of the manual work:
 
-1. **Update the formula** in `Formula/` (URL, version, SHA256, test block, etc.).
-2. **Test locally** with:
-   - `HOMEBREW_NO_INSTALL_FROM_API=1 brew install --build-from-source <formula>`
-   - `brew test <formula>`
-   - `brew audit --new --strict <formula>`
-3. **Create an atomic commit** per the Cookbook's commit rules:
-   - First line must be `formula-name version` (e.g. `oscleaner 1.0.1`) or
-     `formula-name: short fix summary`.
-   - Keep the summary <= 50 characters, add a blank line, then an explanation.
-4. **Open a pull request in `homebrew-core`**. Run
-   `brew bump-formula-pr --strict <formula> --url=<tarball> --sha256=<sha>` (or
-   pass `--tag`/`--revision`) from a machine that has your fork of
-   `Homebrew/homebrew-core` so the command can push a branch and open the PR.
-5. **Link issues / close requests** using `Closes #123`. Address any CI notes
-   before requesting review from the Homebrew maintainers.
+1. **Update the formula** in `Formula/` (URL, version, SHA256, test block, etc.)
+   and push to `main`. Any push that touches `Formula/*.rb` files automatically
+   kicks off `.github/workflows/publish-core.yml`.
+2. **Automation runs per formula**. The workflow determines which formulae
+   changed, parses version/URL/SHA data directly from the Ruby files, and then:
+   - Installs/tests/audits the tap formula (`brew install --build-from-source`,
+     `brew test`, `brew audit --new --strict`).
+   - Calls `brew bump-formula-pr --strict --version=<detected> <formula>` to
+     open a PR against `Homebrew/homebrew-core`.
+3. **Review and merge**. BrewTestBot merges automatically once the PR passes in
+   `homebrew-core`; no extra pushes are needed from this tap.
 
-Once your PR is approved, BrewTestBot will merge it automatically; no extra
-action is required on the tap.
+Manual dispatch is still available in the Actions tab when you need to re-run
+the workflow outside of `main` pushes; supply a `formula` name to override the
+auto-detected set.
 
-## GitHub Action: publish to core
-
-The workflow defined in `.github/workflows/publish-core.yml` runs on
-`workflow_dispatch` and automates the `brew bump-formula-pr` flow:
-
-1. It checks out this tap and sets up the official Homebrew environment.
-2. It syncs `Formula/<name>.rb` into the runner's `hebertcisco/homebrew-tap`
-   location and installs/tests the tap formula via `brew`.
-3. It runs `brew audit --new --strict` and `brew bump-formula-pr --strict` to
-   open a pull request in `Homebrew/homebrew-core`.
-
-Trigger it from the Actions tab with:
-
-- `formula`: file name without extension (e.g. `oscleaner`).
-- `url`, `sha256`, and optional `tag`/`revision`: values to hand to
-  `brew bump-formula-pr`.
-- Optional `version` override and a commit `message` suffix (such as
-  `(new formula)`).
-
-The workflow requires a Personal Access Token stored as the
-`HOMEBREW_GITHUB_API_TOKEN` secret because pushing to `homebrew-core` forks
-needs more scope than the default `GITHUB_TOKEN`, and the token also grants the
-runner read access to this private tap when `brew update` fetches it. See the
-Formula Cookbook for details about what each argument should contain.
+The workflow requires a Personal Access Token stored as
+`HOMEBREW_GITHUB_API_TOKEN`. This token must have `repo` scope so the runner can
+push branches to your `homebrew-core` fork and also read this tap when running
+`brew update`. The default `GITHUB_TOKEN` is not sufficient.
 
 ## Code of Conduct
 

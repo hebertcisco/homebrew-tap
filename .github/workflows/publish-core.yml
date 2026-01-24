@@ -1,33 +1,79 @@
 name: Publish Formula to Homebrew Core
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Formula/*.rb'
   workflow_dispatch:
     inputs:
       formula:
-        description: Formula name (without .rb)
-        required: true
-      url:
-        description: Source tarball URL (required when sha256 is provided)
-        required: false
-      sha256:
-        description: SHA256 for the tarball supplied via url
-        required: false
-      tag:
-        description: Git tag to use instead of url
-        required: false
-      revision:
-        description: Git commit SHA for the supplied tag
-        required: false
-      version:
-        description: Override the detected version (optional)
-        required: false
-      message:
-        description: Commit message suffix (e.g. '(new formula)')
+        description: Optional formula name (without .rb) to run manually
         required: false
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect updated formulae
+        id: detect
+        env:
+          FORMULA_INPUT: ${{ inputs.formula }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          FORMULAE=""
+          if [ -n "${FORMULA_INPUT:-}" ]; then
+            FORMULAE="$FORMULA_INPUT"
+          else
+            if [ "$EVENT_NAME" = "push" ]; then
+              BASE="$BEFORE_SHA"
+              if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+                FORMULAE="$(git ls-files 'Formula/*.rb')"
+              else
+                FORMULAE="$(git diff --name-only "$BASE" "$CURRENT_SHA" -- 'Formula/*.rb')"
+              fi
+            else
+              FORMULAE="$(git ls-files 'Formula/*.rb')"
+            fi
+          fi
+
+          FORMULAE="$(printf '%s\n' "$FORMULAE" | sed -e 's|^Formula/||' -e 's|\.rb$||' | awk 'NF')"
+          FORMULAE="$(printf '%s\n' "$FORMULAE" | sort -u)"
+
+          if [ -z "$FORMULAE" ]; then
+            echo "No formula changes detected."
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          json="$(printf '%s\n' "$FORMULAE" | jq -R -s -c 'split("\n") | map(select(length>0))')"
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
+
+          echo "Will publish the following formulae:"
+          while IFS= read -r formula; do
+            [ -z "$formula" ] && continue
+            echo "  - $formula"
+          done <<< "$FORMULAE"
+
   publish:
+    needs: detect
+    if: ${{ needs.detect.outputs.matrix != '[]' }}
     runs-on: macos-latest
+    strategy:
+      matrix:
+        formula: ${{ fromJson(needs.detect.outputs.matrix) }}
     env:
       HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
       HOMEBREW_NO_INSTALL_FROM_API: 1
@@ -57,10 +103,68 @@ jobs:
       - name: Setup Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Test formula from tap
+      - name: Read formula metadata
+        id: metadata
+        env:
+          FORMULA: ${{ matrix.formula }}
         run: |
           set -euo pipefail
-          FORMULA="${{ inputs.formula }}"
+          FORMULA_PATH="./Formula/${FORMULA}.rb"
+          if [ ! -f "$FORMULA_PATH" ]; then
+            echo "Formula file $FORMULA_PATH not found." >&2
+            exit 1
+          fi
+
+          VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/')"
+          if [ -z "${VERSION:-}" ]; then
+            VERSION_LINE="$(grep -m1 -E '^[[:space:]]*version[[:space:]]+\"' "$FORMULA_PATH" || true)"
+            if [ -n "$VERSION_LINE" ]; then
+              VERSION="$(echo "$VERSION_LINE" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
+            fi
+          fi
+          if [ -z "${VERSION:-}" ]; then
+            echo "Could not detect the version in $FORMULA_PATH" >&2
+            exit 1
+          fi
+          echo "Detected version $VERSION from $FORMULA_PATH"
+
+          URLS="$(grep -E '^[[:space:]]*url \"' "$FORMULA_PATH" | sed -E 's/^[[:space:]]*url \"([^\"]+)\".*/\1/' || true)"
+          SHAS="$(grep -E '^[[:space:]]*sha256 \"' "$FORMULA_PATH" | sed -E 's/^[[:space:]]*sha256 \"([^\"]+)\".*/\1/' || true)"
+
+          if [ -n "$URLS" ]; then
+            echo "Detected download URLs:"
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              echo "  - $line"
+            done <<< "$URLS"
+          fi
+
+          if [ -n "$SHAS" ]; then
+            echo "Detected SHA256 entries:"
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              echo "  - $line"
+            done <<< "$SHAS"
+          fi
+
+          URLS_JSON='[]'
+          SHAS_JSON='[]'
+          if [ -n "$URLS" ]; then
+            URLS_JSON="$(printf '%s\n' "$URLS" | jq -R -s -c 'split("\n") | map(select(length>0))')"
+          fi
+          if [ -n "$SHAS" ]; then
+            SHAS_JSON="$(printf '%s\n' "$SHAS" | jq -R -s -c 'split("\n") | map(select(length>0))')"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "urls=$URLS_JSON" >> "$GITHUB_OUTPUT"
+          echo "sha256s=$SHAS_JSON" >> "$GITHUB_OUTPUT"
+
+      - name: Test formula from tap
+        env:
+          FORMULA: ${{ matrix.formula }}
+        run: |
+          set -euo pipefail
           FORMULA_PATH="./Formula/${FORMULA}.rb"
           if [ ! -f "$FORMULA_PATH" ]; then
             echo "Formula file $FORMULA_PATH not found." >&2
@@ -79,13 +183,10 @@ jobs:
 
       - name: Open Homebrew/homebrew-core pull request
         env:
-          FORMULA: ${{ inputs.formula }}
-          URL_INPUT: ${{ inputs.url }}
-          SHA_INPUT: ${{ inputs.sha256 }}
-          TAG_INPUT: ${{ inputs.tag }}
-          REVISION_INPUT: ${{ inputs.revision }}
-          VERSION_INPUT: ${{ inputs.version }}
-          MESSAGE_INPUT: ${{ inputs.message }}
+          FORMULA: ${{ matrix.formula }}
+          FORMULA_VERSION: ${{ steps.metadata.outputs.version }}
+          FORMULA_URLS: ${{ steps.metadata.outputs.urls }}
+          FORMULA_SHAS: ${{ steps.metadata.outputs.sha256s }}
         run: |
           set -euo pipefail
           FORMULA_PATH="./Formula/${FORMULA}.rb"
@@ -94,15 +195,14 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${URL_INPUT}${TAG_INPUT}${VERSION_INPUT}" ]; then
-            DETECTED_VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/')"
-            if [ -z "${DETECTED_VERSION:-}" ]; then
-              echo "Provide at least one of: url (+ sha256), tag (+ revision), or version." >&2
-              exit 1
-            fi
-            VERSION_INPUT="$DETECTED_VERSION"
-            echo "Detected version $VERSION_INPUT from $FORMULA_PATH"
+          if [ -z "${FORMULA_VERSION:-}" ]; then
+            echo "Formula version metadata missing for ${FORMULA}." >&2
+            exit 1
           fi
+
+          echo "Preparing bump-formula-pr for ${FORMULA} ${FORMULA_VERSION}"
+          echo "Formula URLs payload: ${FORMULA_URLS:-[]}"
+          echo "Formula SHA payload: ${FORMULA_SHAS:-[]}"
 
           brew update
 
@@ -111,35 +211,10 @@ jobs:
             CURRENT_VERSION="$(echo "$CURRENT_INFO" | jq -r 'if type == "array" then (.[0].versions.stable // empty) elif has("formulae") then (.formulae[0].versions.stable // empty) else empty end')"
           fi
 
-          if [ -z "${URL_INPUT}${TAG_INPUT}" ] && [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$VERSION_INPUT" ]; then
+          if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$FORMULA_VERSION" ]; then
             echo "homebrew-core already has ${FORMULA} at version ${CURRENT_VERSION}. Nothing to bump."
             exit 0
           fi
 
-          args=(--strict --no-browse "${FORMULA}")
-
-          if [ -n "$URL_INPUT" ]; then
-            if [ -z "$SHA_INPUT" ]; then
-              echo "sha256 is required when url is provided." >&2
-              exit 1
-            fi
-            args+=("--url=$URL_INPUT" "--sha256=$SHA_INPUT")
-          fi
-
-          if [ -n "$TAG_INPUT" ]; then
-            if [ -z "$REVISION_INPUT" ]; then
-              echo "revision is required when tag is provided." >&2
-              exit 1
-            fi
-            args+=("--tag=$TAG_INPUT" "--revision=$REVISION_INPUT")
-          fi
-
-          if [ -n "$VERSION_INPUT" ]; then
-            args+=("--version=$VERSION_INPUT")
-          fi
-
-          if [ -n "$MESSAGE_INPUT" ]; then
-            args+=("--message=$MESSAGE_INPUT")
-          fi
-
+          args=(--strict --no-browse "${FORMULA}" "--version=$FORMULA_VERSION")
           brew bump-formula-pr "${args[@]}"
