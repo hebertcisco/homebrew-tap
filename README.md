@@ -73,8 +73,9 @@ Trigger it from the Actions tab with:
 
 The workflow requires a Personal Access Token stored as the
 `HOMEBREW_GITHUB_API_TOKEN` secret because pushing to `homebrew-core` forks
-needs more scope than the default `GITHUB_TOKEN`. See the Formula Cookbook for
-details about what each argument should contain.
+needs more scope than the default `GITHUB_TOKEN`, and the token also grants the
+runner read access to this private tap when `brew update` fetches it. See the
+Formula Cookbook for details about what each argument should contain.
 
 ## Code of Conduct
 

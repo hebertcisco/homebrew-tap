@@ -50,6 +50,13 @@ jobs:
             exit 1
           fi
 
+      - name: Configure GitHub credentials
+        run: |
+          set -euo pipefail
+          git config --global credential.helper store
+          printf "https://x-access-token:%s@github.com\n" "$HOMEBREW_GITHUB_API_TOKEN" > ~/.git-credentials
+          chmod 600 ~/.git-credentials
+
       - name: Test formula from tap
         run: |
           set -euo pipefail
