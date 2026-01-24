@@ -249,7 +249,13 @@ jobs:
             fi
           fi
 
-          if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$FORMULA_VERSION" ]; then
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "homebrew-core does not yet ship ${FORMULA}. Initial formula submissions must be opened manually following the Homebrew/homebrew-core contributing guide."
+            echo "Skipping bump-formula-pr automation for ${FORMULA} ${FORMULA_VERSION}."
+            exit 0
+          fi
+
+          if [ "$CURRENT_VERSION" = "$FORMULA_VERSION" ]; then
             echo "homebrew-core already has ${FORMULA} at version ${CURRENT_VERSION}. Nothing to bump."
             exit 0
           fi
