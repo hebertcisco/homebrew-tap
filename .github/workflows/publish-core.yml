@@ -35,9 +35,6 @@ jobs:
       - name: Checkout tap
         uses: actions/checkout@v4
 
-      - name: Setup Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
       - name: Configure git identity
         run: |
           git config --global user.name "${{ github.actor }}"
@@ -56,6 +53,9 @@ jobs:
           git config --global credential.helper store
           printf "https://x-access-token:%s@github.com\n" "$HOMEBREW_GITHUB_API_TOKEN" > ~/.git-credentials
           chmod 600 ~/.git-credentials
+
+      - name: Setup Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
 
       - name: Test formula from tap
         run: |
