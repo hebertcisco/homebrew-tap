@@ -4,7 +4,6 @@
 class Oscleaner < Formula
   desc "Cross-platform system cleanup CLI"
   homepage "https://github.com/hebertcisco/oscleaner"
-  version "1.0.0"
   license "MIT"
 
   on_macos do
