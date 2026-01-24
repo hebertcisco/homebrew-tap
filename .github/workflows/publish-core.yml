@@ -209,8 +209,44 @@ jobs:
           CURRENT_VERSION=""
           if CURRENT_INFO="$(brew info --json=v2 "homebrew/core/${FORMULA}" 2>/dev/null)"; then
             CURRENT_VERSION="$(echo "$CURRENT_INFO" | jq -r 'if type == "array" then (.[0].versions.stable // empty) elif has("formulae") then (.formulae[0].versions.stable // empty) else empty end')"
+            if [ -n "$CURRENT_VERSION" ]; then
+              echo "Detected ${FORMULA} ${CURRENT_VERSION} in homebrew-core via brew info."
+            fi
           else
-            echo "homebrew-core does not currently report ${FORMULA}; assuming it needs an update or a new formula."
+            echo "brew info did not return metadata for ${FORMULA} in homebrew-core; will inspect the tap checkout directly."
+          fi
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            CORE_REPO="$(brew --repository homebrew/core)"
+            CORE_FORMULA_PATH=""
+            if [ -d "$CORE_REPO" ]; then
+              CORE_FORMULA_PATH="$(find "$CORE_REPO" -path "*/Formula/${FORMULA}.rb" -print -quit || true)"
+              if [ -z "$CORE_FORMULA_PATH" ] && [ -d "$CORE_REPO/Formula" ]; then
+                CORE_FORMULA_PATH="$(find "$CORE_REPO/Formula" -name "${FORMULA}.rb" -print -quit || true)"
+              fi
+
+              if [ -n "$CORE_FORMULA_PATH" ] && [ -f "$CORE_FORMULA_PATH" ]; then
+                echo "Found ${FORMULA}.rb in homebrew-core checkout at ${CORE_FORMULA_PATH}."
+                CORE_VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$CORE_FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/' || true)"
+                if [ -z "${CORE_VERSION:-}" ]; then
+                  CORE_VERSION_LINE="$(grep -m1 -E '^[[:space:]]*version[[:space:]]+\"' "$CORE_FORMULA_PATH" || true)"
+                  if [ -n "$CORE_VERSION_LINE" ]; then
+                    CORE_VERSION="$(echo "$CORE_VERSION_LINE" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
+                  fi
+                fi
+
+                if [ -n "${CORE_VERSION:-}" ]; then
+                  CURRENT_VERSION="$CORE_VERSION"
+                  echo "Detected ${FORMULA} ${CURRENT_VERSION} directly from the homebrew-core formula file."
+                else
+                  echo "Unable to parse the version from ${CORE_FORMULA_PATH}."
+                fi
+              else
+                echo "homebrew-core checkout does not contain ${FORMULA}.rb; treating this as a new formula submission."
+              fi
+            else
+              echo "brew --repository homebrew/core did not return a directory; cannot inspect the current formula file."
+            fi
           fi
 
           if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$FORMULA_VERSION" ]; then
