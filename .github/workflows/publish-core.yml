@@ -207,8 +207,10 @@ jobs:
           brew update
 
           CURRENT_VERSION=""
-          if CURRENT_INFO="$(brew info --json=v2 "${FORMULA}" 2>/dev/null)"; then
+          if CURRENT_INFO="$(brew info --json=v2 "homebrew/core/${FORMULA}" 2>/dev/null)"; then
             CURRENT_VERSION="$(echo "$CURRENT_INFO" | jq -r 'if type == "array" then (.[0].versions.stable // empty) elif has("formulae") then (.formulae[0].versions.stable // empty) else empty end')"
+          else
+            echo "homebrew-core does not currently report ${FORMULA}; assuming it needs an update or a new formula."
           fi
 
           if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$FORMULA_VERSION" ]; then
