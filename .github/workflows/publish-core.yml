@@ -105,6 +105,17 @@ jobs:
           fi
 
           brew update
+
+          CURRENT_VERSION=""
+          if CURRENT_INFO="$(brew info --json=v2 "${FORMULA}" 2>/dev/null)"; then
+            CURRENT_VERSION="$(echo "$CURRENT_INFO" | jq -r '.[0].versions.stable // empty')"
+          fi
+
+          if [ -z "${URL_INPUT}${TAG_INPUT}" ] && [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$VERSION_INPUT" ]; then
+            echo "homebrew-core already has ${FORMULA} at version ${CURRENT_VERSION}. Nothing to bump."
+            exit 0
+          fi
+
           args=(--strict --no-browse "${FORMULA}")
 
           if [ -n "$URL_INPUT" ]; then
