@@ -42,7 +42,7 @@ The high-level checklist for this tap is:
 3. **Create an atomic commit** per the Cookbook's commit rules:
    - First line must be `formula-name version` (e.g. `oscleaner 1.0.1`) or
      `formula-name: short fix summary`.
-   - Keep the summary ≤50 characters, add a blank line, then an explanation.
+   - Keep the summary <= 50 characters, add a blank line, then an explanation.
 4. **Open a pull request in `homebrew-core`**. Run
    `brew bump-formula-pr --strict <formula> --url=<tarball> --sha256=<sha>` (or
    pass `--tag`/`--revision`) from a machine that has your fork of
@@ -59,9 +59,9 @@ The workflow defined in `.github/workflows/publish-core.yml` runs on
 `workflow_dispatch` and automates the `brew bump-formula-pr` flow:
 
 1. It checks out this tap and sets up the official Homebrew environment.
-2. It copies the requested formula into the local `homebrew-core` checkout.
-3. It runs `brew audit --new --strict` and `brew test` before opening a PR with
-   `brew bump-formula-pr --strict`.
+2. It installs/tests the selected formula directly from `Formula/<name>.rb`.
+3. It runs `brew audit --new --strict` and `brew bump-formula-pr --strict` to
+   open a pull request in `Homebrew/homebrew-core`.
 
 Trigger it from the Actions tab with:
 

@@ -1,0 +1,111 @@
+name: Publish Formula to Homebrew Core
+
+on:
+  workflow_dispatch:
+    inputs:
+      formula:
+        description: Formula name (without .rb)
+        required: true
+      url:
+        description: Source tarball URL (required when sha256 is provided)
+        required: false
+      sha256:
+        description: SHA256 for the tarball supplied via url
+        required: false
+      tag:
+        description: Git tag to use instead of url
+        required: false
+      revision:
+        description: Git commit SHA for the supplied tag
+        required: false
+      version:
+        description: Override the detected version (optional)
+        required: false
+      message:
+        description: Commit message suffix (e.g. '(new formula)')
+        required: false
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    env:
+      HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
+      HOMEBREW_NO_INSTALL_FROM_API: 1
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+
+      - name: Setup Homebrew
+        uses: Homebrew/actions/setup-homebrew@v2
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Verify secrets
+        run: |
+          if [ -z "${HOMEBREW_GITHUB_API_TOKEN:-}" ]; then
+            echo "HOMEBREW_GITHUB_API_TOKEN is required. Add it as a repository secret." >&2
+            exit 1
+          fi
+
+      - name: Test formula from tap
+        run: |
+          set -euo pipefail
+          FORMULA="${{ inputs.formula }}"
+          FORMULA_PATH="./Formula/${FORMULA}.rb"
+          if [ ! -f "$FORMULA_PATH" ]; then
+            echo "Formula file $FORMULA_PATH not found." >&2
+            exit 1
+          fi
+
+          brew update
+          brew install --build-from-source "$FORMULA_PATH"
+          brew test "$FORMULA_PATH"
+          brew audit --new --strict "$FORMULA_PATH"
+
+      - name: Open Homebrew/homebrew-core pull request
+        env:
+          FORMULA: ${{ inputs.formula }}
+          URL_INPUT: ${{ inputs.url }}
+          SHA_INPUT: ${{ inputs.sha256 }}
+          TAG_INPUT: ${{ inputs.tag }}
+          REVISION_INPUT: ${{ inputs.revision }}
+          VERSION_INPUT: ${{ inputs.version }}
+          MESSAGE_INPUT: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL_INPUT}${TAG_INPUT}${VERSION_INPUT}" ]; then
+            echo "Provide at least one of: url (+ sha256), tag (+ revision), or version." >&2
+            exit 1
+          fi
+
+          brew update
+          args=(--strict --no-browse "${FORMULA}")
+
+          if [ -n "$URL_INPUT" ]; then
+            if [ -z "$SHA_INPUT" ]; then
+              echo "sha256 is required when url is provided." >&2
+              exit 1
+            fi
+            args+=("--url=$URL_INPUT" "--sha256=$SHA_INPUT")
+          fi
+
+          if [ -n "$TAG_INPUT" ]; then
+            if [ -z "$REVISION_INPUT" ]; then
+              echo "revision is required when tag is provided." >&2
+              exit 1
+            fi
+            args+=("--tag=$TAG_INPUT" "--revision=$REVISION_INPUT")
+          fi
+
+          if [ -n "$VERSION_INPUT" ]; then
+            args+=("--version=$VERSION_INPUT")
+          fi
+
+          if [ -n "$MESSAGE_INPUT" ]; then
+            args+=("--message=$MESSAGE_INPUT")
+          fi
+
+          brew bump-formula-pr "${args[@]}"
