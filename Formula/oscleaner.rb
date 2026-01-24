@@ -10,16 +10,16 @@ class Oscleaner < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-aarch64-apple-darwin.tar.gz"
-      sha256 "16d19502cca68b3715ace249b8fe90d7c47a6f6b96a4d1e7baec4d7bb3624b5a"
+      sha256 "7bc7270dc203296cd2169cbd4a84386ad80a46aef5bce174409e2dfc1a655cbc"
     else
       url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-x86_64-apple-darwin.tar.gz"
-      sha256 "ae3fcb97914f109fb2d276fb279128aff36ac7858ad5b1f71a77c658d2e64ce0"
+      sha256 "de78fb973f9b9ddec8f8305258c3433011a697a2e91dcbb67ebafa8618ee5768"
     end
   end
 
   on_linux do
     url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "efe8fcb028bed054e3cdaa23e155355cf7ceff724c4221c4d98c6eebad47112d"
+    sha256 "b0a356156f5c3962d5bf0f3ebad078d4b772245987ff206e468f8474779e4ae6"
   end
 
   def install
