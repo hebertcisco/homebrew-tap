@@ -68,6 +68,8 @@ Trigger it from the Actions tab with:
 - `formula`: file name without extension (e.g. `oscleaner`).
 - `url`, `sha256`, and optional `tag`/`revision`: values to hand to
   `brew bump-formula-pr`.
+- Optional `version` override and a commit `message` suffix (such as
+  `(new formula)`).
 
 The workflow requires a Personal Access Token stored as the
 `HOMEBREW_GITHUB_API_TOKEN` secret because pushing to `homebrew-core` forks
