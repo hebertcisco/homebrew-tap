@@ -68,9 +68,14 @@ jobs:
           fi
 
           brew update
-          brew install --build-from-source "$FORMULA_PATH"
-          brew test "$FORMULA_PATH"
-          brew audit --new --strict "$FORMULA_PATH"
+          brew tap hebertcisco/homebrew-tap https://github.com/hebertcisco/homebrew-tap
+          TAP_DIR="$(brew --repository hebertcisco/homebrew-tap)"
+          mkdir -p "$TAP_DIR/Formula"
+          cp "$FORMULA_PATH" "$TAP_DIR/Formula/"
+
+          brew install --build-from-source "hebertcisco/homebrew-tap/${FORMULA}"
+          brew test "hebertcisco/homebrew-tap/${FORMULA}"
+          brew audit --new --strict "hebertcisco/homebrew-tap/${FORMULA}"
 
       - name: Open Homebrew/homebrew-core pull request
         env:

@@ -59,7 +59,8 @@ The workflow defined in `.github/workflows/publish-core.yml` runs on
 `workflow_dispatch` and automates the `brew bump-formula-pr` flow:
 
 1. It checks out this tap and sets up the official Homebrew environment.
-2. It installs/tests the selected formula directly from `Formula/<name>.rb`.
+2. It syncs `Formula/<name>.rb` into the runner's `hebertcisco/homebrew-tap`
+   location and installs/tests the tap formula via `brew`.
 3. It runs `brew audit --new --strict` and `brew bump-formula-pr --strict` to
    open a pull request in `Homebrew/homebrew-core`.
 
