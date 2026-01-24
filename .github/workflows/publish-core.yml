@@ -71,7 +71,7 @@ jobs:
           brew tap hebertcisco/homebrew-tap https://github.com/hebertcisco/homebrew-tap
           TAP_DIR="$(brew --repository hebertcisco/homebrew-tap)"
           mkdir -p "$TAP_DIR/Formula"
-          cp "$FORMULA_PATH" "$TAP_DIR/Formula/"
+          rsync -a "$FORMULA_PATH" "$TAP_DIR/Formula/"
 
           brew install --build-from-source "hebertcisco/homebrew-tap/${FORMULA}"
           brew test "hebertcisco/homebrew-tap/${FORMULA}"
