@@ -46,6 +46,24 @@ this tap now automates most of the manual work:
 3. **Review and merge**. BrewTestBot merges automatically once the PR passes in
    `homebrew-core`; no extra pushes are needed from this tap.
 
+### First-time submissions
+
+When a formula is missing from `homebrew-core`, the `publish-core` workflow now
+bootstraps the entire process automatically:
+
+- Add a matching `Formula/<formula>.rb.core` file to this repo. This template is
+  copied verbatim into the `homebrew-core` checkout, so keep it in sync with the
+  version/URLs you intend to release.
+- Provide a Personal Access Token via `HOMEBREW_GITHUB_API_TOKEN` (already
+  required) and optionally set the repository variable
+  `HOMEBREW_CORE_FORK_OWNER` when the fork lives under a different GitHub
+  account or organization. Otherwise the workflow uses the pushing user as the
+  fork owner.
+- The workflow forks/clones `homebrew-core`, checks out a branch named
+  `add-<formula>-<version>`, copies the `.rb.core` template, runs
+  `brew audit --new-formula <formula>`, commits, pushes, and finally uses
+  `gh pr create` to open the pull request against `Homebrew/homebrew-core`.
+
 Manual dispatch is still available in the Actions tab when you need to re-run
 the workflow outside of `main` pushes; supply a `formula` name to override the
 auto-detected set.

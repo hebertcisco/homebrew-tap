@@ -77,6 +77,8 @@ jobs:
     env:
       HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
       HOMEBREW_NO_INSTALL_FROM_API: 1
+      GH_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
+      HOMEBREW_CORE_FORK_OWNER: ${{ vars.HOMEBREW_CORE_FORK_OWNER }}
     steps:
       - name: Checkout tap
         uses: actions/checkout@v4
@@ -250,8 +252,63 @@ jobs:
           fi
 
           if [ -z "$CURRENT_VERSION" ]; then
-            echo "homebrew-core does not yet ship ${FORMULA}. Initial formula submissions must be opened manually following the Homebrew/homebrew-core contributing guide."
-            echo "Skipping bump-formula-pr automation for ${FORMULA} ${FORMULA_VERSION}."
+            echo "homebrew-core does not currently ship ${FORMULA}. Bootstrapping a new formula submission."
+
+            CORE_TEMPLATE="Formula/${FORMULA}.rb.core"
+            if [ ! -f "$CORE_TEMPLATE" ]; then
+              echo "::error::Core template ${CORE_TEMPLATE} not found. Add it to the tap to enable automation." >&2
+              exit 1
+            fi
+
+            CORE_FORK_OWNER="${HOMEBREW_CORE_FORK_OWNER:-${GITHUB_ACTOR}}"
+            if [ -z "$CORE_FORK_OWNER" ]; then
+              echo "::error::Unable to determine fork owner (set HOMEBREW_CORE_FORK_OWNER or push from a user account)." >&2
+              exit 1
+            fi
+
+            if [ -z "${GH_TOKEN:-}" ]; then
+              echo "::error::GH_TOKEN is required for GitHub CLI authentication." >&2
+              exit 1
+            fi
+
+            printf '%s\n' "$GH_TOKEN" | gh auth login --hostname github.com --with-token
+
+            if ! gh repo view "${CORE_FORK_OWNER}/homebrew-core" >/dev/null 2>&1; then
+              echo "Creating fork ${CORE_FORK_OWNER}/homebrew-core via gh."
+              if [ "$CORE_FORK_OWNER" = "${GITHUB_ACTOR}" ]; then
+                gh repo fork homebrew/homebrew-core --remote=false
+              else
+                gh repo fork homebrew/homebrew-core --remote=false --org "$CORE_FORK_OWNER"
+              fi
+            fi
+
+            CORE_BRANCH="add-${FORMULA}-${FORMULA_VERSION}"
+            CORE_CLONE="$RUNNER_TEMP/homebrew-core"
+            rm -rf "$CORE_CLONE"
+
+            CORE_REMOTE_URL="https://x-access-token:${HOMEBREW_GITHUB_API_TOKEN}@github.com/${CORE_FORK_OWNER}/homebrew-core.git"
+            git clone "$CORE_REMOTE_URL" "$CORE_CLONE"
+            cd "$CORE_CLONE"
+            git remote add upstream https://github.com/Homebrew/homebrew-core.git
+            git fetch upstream
+            git checkout -B "$CORE_BRANCH" upstream/master
+            install -d Formula
+            cp "$GITHUB_WORKSPACE/$CORE_TEMPLATE" "Formula/${FORMULA}.rb"
+
+            brew audit --new-formula "${FORMULA}"
+
+            git status --short
+            git add "Formula/${FORMULA}.rb"
+            git commit -m "${FORMULA} ${FORMULA_VERSION} (new formula)"
+            git push origin "$CORE_BRANCH" --force
+
+            gh pr create \
+              --repo homebrew/homebrew-core \
+              --base master \
+              --head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
+              --title "${FORMULA} ${FORMULA_VERSION} (new formula)" \
+              --body "Automated submission from hebertcisco/homebrew-tap."
+
             exit 0
           fi
 
