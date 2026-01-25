@@ -299,14 +299,14 @@ jobs:
 
             git status --short
             git add "Formula/${FORMULA}.rb"
-            git commit -m "${FORMULA} ${FORMULA_VERSION} (new formula)"
+            git commit -m "${FORMULA}: add ${FORMULA_VERSION}"
             git push origin "$CORE_BRANCH" --force
 
             gh pr create \
               --repo homebrew/homebrew-core \
               --base master \
               --head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
-              --title "${FORMULA} ${FORMULA_VERSION} (new formula)" \
+              --title "${FORMULA}: add ${FORMULA_VERSION}" \
               --body "Automated submission from hebertcisco/homebrew-tap."
 
             exit 0
