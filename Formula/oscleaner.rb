@@ -4,31 +4,32 @@
 class Oscleaner < Formula
   desc "Cross-platform system cleanup CLI"
   homepage "https://github.com/hebertcisco/oscleaner"
+  url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-v1.0.0-source.tar.gz"
+  sha256 "96a9bc280f9f2ec06e6206d9599769911173b729169bc675c5614c29d65b2607"
   license "MIT"
+  head "https://github.com/hebertcisco/oscleaner.git", branch: "main"
+
+  bottle do
+    root_url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma: "993b70e8ff55fadcea9e213574976b68ebd1b7fc9431af5abae6a72fb9e7cbbf"
+    sha256 cellar: :any_skip_relocation, sequoia: "142a8600351189d0844c4d88ec4f942135e2436d1066a572c6ba47141a95198e"
+  end
 
   on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-aarch64-apple-darwin.tar.gz"
-      sha256 "eeb43070933f075eeadb603959d3c86217c58a67cfd3ea1fd040e622cca41dd8"
-    else
-      url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-x86_64-apple-darwin.tar.gz"
-      sha256 "8f6aa58038b205920a19e48da861b1f9144a316ae4a6c2ebe821447d6b0604b3"
-    end
+    depends_on "rust" => :build
   end
 
   on_linux do
-    url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "92dde9669110b674dd1299c307a377145525abd5dfd82b45f4c2342232bedf4d"
+    url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-v1.0.0-x86_64-unknown-linux-gnu.tar.gz"
+    sha256 "6d3776e5d3bed67efb29fce47548fa5faf9eb9f653e301cbbe2f1f40c1ad429c"
   end
 
   def install
-    bin_name = if OS.mac?
-      Hardware::CPU.arm? ? "oscleaner-aarch64-apple-darwin" : "oscleaner-x86_64-apple-darwin"
+    if OS.mac?
+      system "cargo", "install", *std_cargo_args(path: ".")
     else
-      "oscleaner-x86_64-unknown-linux-gnu"
+      bin.install "oscleaner-v#{version}-x86_64-unknown-linux-gnu" => "oscleaner"
     end
-
-    bin.install bin_name => "oscleaner"
   end
 
   test do
