@@ -5,7 +5,7 @@ class Oscleaner < Formula
   desc "Cross-platform system cleanup CLI"
   homepage "https://github.com/hebertcisco/oscleaner"
   url "https://github.com/hebertcisco/oscleaner/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "92de3efb66c4f3ac9c868dcabf86de10dc0723ffccb7c736e24c749d59bc722d"
+  sha256 "c889e10bd445930bccc9cd886f37370affdc673e860e7e9908506c6eed180c81"
   license "MIT"
   head "https://github.com/hebertcisco/oscleaner.git", branch: "main"
 
