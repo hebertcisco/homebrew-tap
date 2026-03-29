@@ -272,13 +272,28 @@ jobs:
 
             printf '%s\n' "$HOMEBREW_GITHUB_API_TOKEN" | gh auth login --hostname github.com --with-token
 
+            echo "Ensuring fork ${CORE_FORK_OWNER}/homebrew-core exists..."
             if ! gh repo view "${CORE_FORK_OWNER}/homebrew-core" >/dev/null 2>&1; then
-              echo "Creating fork ${CORE_FORK_OWNER}/homebrew-core via gh."
+              echo "Fork not found. Creating ${CORE_FORK_OWNER}/homebrew-core via gh."
               if [ "$CORE_FORK_OWNER" = "${GITHUB_ACTOR}" ]; then
                 gh repo fork homebrew/homebrew-core --clone=false
               else
                 gh repo fork homebrew/homebrew-core --clone=false --org "$CORE_FORK_OWNER"
               fi
+              echo "Waiting for fork to become available..."
+              for i in $(seq 1 12); do
+                if gh repo view "${CORE_FORK_OWNER}/homebrew-core" >/dev/null 2>&1; then
+                  echo "Fork is ready."
+                  break
+                fi
+                if [ "$i" -eq 12 ]; then
+                  echo "::error::Fork did not become available after 60 seconds." >&2
+                  exit 1
+                fi
+                sleep 5
+              done
+            else
+              echo "Fork ${CORE_FORK_OWNER}/homebrew-core already exists."
             fi
 
             CORE_BRANCH="add-${FORMULA}-${FORMULA_VERSION}"
@@ -286,18 +301,22 @@ jobs:
             rm -rf "$CORE_CLONE"
 
             CORE_REMOTE_URL="https://x-access-token:${HOMEBREW_GITHUB_API_TOKEN}@github.com/${CORE_FORK_OWNER}/homebrew-core.git"
-            git clone "$CORE_REMOTE_URL" "$CORE_CLONE"
+            echo "Cloning fork (shallow) to ${CORE_CLONE}..."
+            git clone --depth=1 "$CORE_REMOTE_URL" "$CORE_CLONE"
             cd "$CORE_CLONE"
             git remote add upstream https://github.com/Homebrew/homebrew-core.git
-            git fetch upstream
+            git fetch --depth=1 upstream master
             git checkout -B "$CORE_BRANCH" upstream/master
-            install -d Formula
-            cp "$GITHUB_WORKSPACE/$CORE_TEMPLATE" "Formula/${FORMULA}.rb"
+
+            INITIAL_LETTER="$(echo "${FORMULA}" | cut -c1)"
+            CORE_FORMULA_DIR="Formula/${INITIAL_LETTER}"
+            install -d "$CORE_FORMULA_DIR"
+            cp "$GITHUB_WORKSPACE/$CORE_TEMPLATE" "${CORE_FORMULA_DIR}/${FORMULA}.rb"
 
             brew audit --new-formula "${FORMULA}"
 
             git status --short
-            git add "Formula/${FORMULA}.rb"
+            git add "${CORE_FORMULA_DIR}/${FORMULA}.rb"
             git commit -m "${FORMULA}: add ${FORMULA_VERSION}"
             git push origin "$CORE_BRANCH" --force
 
