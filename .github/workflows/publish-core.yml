@@ -320,12 +320,37 @@ jobs:
             git commit -m "${FORMULA}: add ${FORMULA_VERSION}"
             git push origin "$CORE_BRANCH" --force
 
-            gh pr create \
+            PR_TITLE="${FORMULA}: add ${FORMULA_VERSION}"
+            PR_BODY="Automated submission from hebertcisco/homebrew-tap."
+
+            if gh pr create \
               --repo homebrew/homebrew-core \
               --base master \
               --head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
-              --title "${FORMULA}: add ${FORMULA_VERSION}" \
-              --body "Automated submission from hebertcisco/homebrew-tap."
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" 2>/dev/null; then
+              echo "PR created successfully via gh."
+            else
+              echo "gh pr create failed (likely token scope issue). Falling back to REST API..."
+              PR_URL=$(curl -s -X POST \
+                -H "Authorization: token ${HOMEBREW_GITHUB_API_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/Homebrew/homebrew-core/pulls" \
+                -d "$(jq -n \
+                  --arg title "$PR_TITLE" \
+                  --arg body "$PR_BODY" \
+                  --arg head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
+                  --arg base "master" \
+                  '{title: $title, body: $body, head: $head, base: $base}')" \
+                | jq -r '.html_url // .message')
+              if [[ "$PR_URL" == http* ]]; then
+                echo "PR created via REST API: $PR_URL"
+              else
+                echo "::warning::Could not create PR automatically. Response: $PR_URL"
+                echo "::warning::Push succeeded to ${CORE_FORK_OWNER}/homebrew-core branch ${CORE_BRANCH}."
+                echo "::warning::Create the PR manually at: https://github.com/homebrew/homebrew-core/compare/master...${CORE_FORK_OWNER}:${CORE_BRANCH}"
+              fi
+            fi
 
             exit 0
           fi
