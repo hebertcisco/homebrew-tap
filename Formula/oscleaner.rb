@@ -5,14 +5,14 @@ class Oscleaner < Formula
   desc "Cross-platform system cleanup CLI"
   homepage "https://github.com/hebertcisco/oscleaner"
   url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-v1.0.0-source.tar.gz"
-  sha256 "cf1b9f208722313d67b24efc81daa45dc0bcd27bc0b39751203668d86f564a91"
+  sha256 "c609820994a2dee7a3df7802f650969a35630038f6bcfb88632c92cf5dcddc10"
   license "MIT"
   head "https://github.com/hebertcisco/oscleaner.git", branch: "main"
 
   bottle do
-    sha256 cellar: :any_skip_relocation, arm64_sonoma: "9cda25fb986140471748df24df62ee53f6e10b208c7165e0979cdfa2e4439d47"
-    sha256 cellar: :any_skip_relocation, sequoia: "6017c761db8a494b6f6f1271a0acbb7984919ebaf4c728c11a20aed48932fd6a"
-    sha256 cellar: :any_skip_relocation, x86_64_linux: "2d3cf2fb011e538d3ad7538be76c4f5c57ed87f1735e34f3858d2f3860942bde"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma: "e43a49614f4e9a9c14c2c08f2a4e1ffacf000c1a6fbb6a1e27393a4675dcf888"
+    sha256 cellar: :any_skip_relocation, sequoia: "5e56397217a5dc57f2f4c89516e05fe39ae3115255d4167e9a4d1b0808949f66"
+    sha256 cellar: :any_skip_relocation, x86_64_linux: "b5741dedcfcb63cda2ce8d70272c41a06e2aaac06414b94dd4a4dd278a61a72c"
   end
 
   on_macos do
@@ -21,7 +21,7 @@ class Oscleaner < Formula
 
   on_linux do
     url "https://github.com/hebertcisco/oscleaner/releases/download/v1.0.0/oscleaner-v1.0.0-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "0f305c8c41e00f321815fca5a71b95d2d8b898bf2faa17590c60beb92a4f72c2"
+    sha256 "6e6b927789d8364f6afab605ca0291c431925db34c359abeaccd2445a7d0bcc2"
   end
 
   def install
