@@ -313,7 +313,7 @@ jobs:
             install -d "$CORE_FORMULA_DIR"
             cp "$GITHUB_WORKSPACE/$CORE_TEMPLATE" "${CORE_FORMULA_DIR}/${FORMULA}.rb"
 
-            brew audit --new-formula "${FORMULA}"
+            brew audit --new --formula "${FORMULA}"
 
             git status --short
             git add "${CORE_FORMULA_DIR}/${FORMULA}.rb"
