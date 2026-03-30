@@ -9,12 +9,6 @@ class Oscleaner < Formula
   license "MIT"
   head "https://github.com/hebertcisco/oscleaner.git", branch: "main"
 
-  bottle do
-    root_url "https://github.com/hebertcisco/oscleaner/releases/download/v1.1.0"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma: "4958d97c8d6d9d44ca773158d8a361c3cf9570114c589e9530164746dc40ea8a"
-    sha256 cellar: :any_skip_relocation, sequoia:     "3b26082381adf31992a4fdf24d0d49d35ac61f63f6f41c23ca2634f0ce44014a"
-    sha256 cellar: :any_skip_relocation, x86_64_linux: "f8047ee48d0c851d09ba93352e2ef7403d5892586d56930bbc804d799aa155db"
-  end
 
   depends_on "rust" => :build
 
