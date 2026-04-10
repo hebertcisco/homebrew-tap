@@ -311,8 +311,14 @@ jobs:
             git clone --depth=1 "$CORE_REMOTE_URL" "$CORE_CLONE"
             cd "$CORE_CLONE"
             git remote add upstream https://github.com/Homebrew/homebrew-core.git
-            git fetch --depth=1 upstream master
-            git checkout -B "$CORE_BRANCH" upstream/master
+            CORE_DEFAULT_BRANCH="$(git ls-remote --symref upstream HEAD | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
+            if [ -z "$CORE_DEFAULT_BRANCH" ]; then
+              echo "::error::Unable to determine the default branch for Homebrew/homebrew-core." >&2
+              exit 1
+            fi
+            echo "Using homebrew-core default branch: ${CORE_DEFAULT_BRANCH}"
+            git fetch --depth=1 upstream "$CORE_DEFAULT_BRANCH"
+            git checkout -B "$CORE_BRANCH" "upstream/$CORE_DEFAULT_BRANCH"
 
             INITIAL_LETTER="$(echo "${FORMULA}" | cut -c1)"
             CORE_FORMULA_DIR="Formula/${INITIAL_LETTER}"
@@ -331,7 +337,7 @@ jobs:
 
             if gh pr create \
               --repo homebrew/homebrew-core \
-              --base master \
+              --base "$CORE_DEFAULT_BRANCH" \
               --head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
               --title "$PR_TITLE" \
               --body "$PR_BODY" 2>/dev/null; then
@@ -346,7 +352,7 @@ jobs:
                   --arg title "$PR_TITLE" \
                   --arg body "$PR_BODY" \
                   --arg head "${CORE_FORK_OWNER}:${CORE_BRANCH}" \
-                  --arg base "master" \
+                  --arg base "$CORE_DEFAULT_BRANCH" \
                   '{title: $title, body: $body, head: $head, base: $base}')" \
                 | jq -r '.html_url // .message')
               if [[ "$PR_URL" == http* ]]; then
@@ -354,7 +360,7 @@ jobs:
               else
                 echo "::warning::Could not create PR automatically. Response: $PR_URL"
                 echo "::warning::Push succeeded to ${CORE_FORK_OWNER}/homebrew-core branch ${CORE_BRANCH}."
-                echo "::warning::Create the PR manually at: https://github.com/homebrew/homebrew-core/compare/master...${CORE_FORK_OWNER}:${CORE_BRANCH}"
+                echo "::warning::Create the PR manually at: https://github.com/homebrew/homebrew-core/compare/${CORE_DEFAULT_BRANCH}...${CORE_FORK_OWNER}:${CORE_BRANCH}"
               fi
             fi
 
