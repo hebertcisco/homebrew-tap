@@ -116,7 +116,7 @@ jobs:
             exit 1
           fi
 
-          VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/')"
+          VERSION="$(grep -m1 -E 'releases/download/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*download\/v([^/]+)\/.*/\1/' || true)"
           if [ -z "${VERSION:-}" ]; then
             VERSION="$(grep -m1 -E 'archive/refs/tags/v[0-9]+' "$FORMULA_PATH" | sed -E 's/.*tags\/v([^/]+)\.tar\.gz.*/\1/' || true)"
           fi
